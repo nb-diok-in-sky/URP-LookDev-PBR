@@ -36,3 +36,6 @@ Thumbs.db
 # 自己的资产（模型、贴图）放这里，不进公开仓库
 /Assets/LookDev/MyAssets/Private/
 /Assets/LookDev/MyAssets/Private.meta
+
+# 文章草稿和踩坑日志，写完再决定要不要公开
+/文章草稿/
