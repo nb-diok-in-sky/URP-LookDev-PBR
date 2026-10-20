@@ -8,7 +8,7 @@ using Debug = UnityEngine.Debug;
 
 // 一键截图：按 F12（或菜单 LookDev/截图）。编辑模式、运行模式都能用。
 // 截的是 LookDev 相机的画面，固定 1920×1080，存到 工程根目录/Screenshots/。
-// 文件名 = 序号_标签_git提交号.png；Assets 里有没提交的改动时，提交号后面会加 "-未提交"。
+// 文件名 = 序号_标签_git提交号.png；MyAssets 里有没提交的改动时，提交号后面会加 "-未提交"。
 // 标签在菜单 LookDev/截图设置 里填，比如 "坑03_背光面死黑"。
 public class LookDevScreenshot : EditorWindow
 {
@@ -98,12 +98,13 @@ public class LookDevScreenshot : EditorWindow
         return "_" + label.Trim().Replace(' ', '_');
     }
 
-    // 当前 git 提交号；Assets 里有没提交的改动就加 "-未提交"
+    // 当前 git 提交号；MyAssets（你的 shader 和材质）里有没提交的改动就加 "-未提交"
+    // 只看 MyAssets：切 HDRI、动场景这些环境改动不影响标记
     static string GitTag()
     {
         string hash = RunGit("rev-parse --short HEAD");
         if (string.IsNullOrEmpty(hash)) return "无提交";
-        string dirty = RunGit("status --porcelain -- Assets");
+        string dirty = RunGit("status --porcelain -- Assets/LookDev/MyAssets");
         return string.IsNullOrEmpty(dirty) ? hash : hash + "-未提交";
     }
 
