@@ -32,3 +32,7 @@ Thumbs.db
 # 反射图由 LookDev 总控自动重新烘焙，不进仓库
 /Assets/LookDev/Generated/SkyReflection.exr
 /Assets/LookDev/Generated/SkyReflection.exr.meta
+
+# 自己的资产（模型、贴图）放这里，不进公开仓库
+/Assets/LookDev/MyAssets/Private/
+/Assets/LookDev/MyAssets/Private.meta
