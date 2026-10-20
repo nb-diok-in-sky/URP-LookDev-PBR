@@ -44,3 +44,14 @@ UsePass "Universal Render Pipeline/Lit/DEPTHNORMALS"
 
 ## 已知差异
 URP 的 BRDF 是简化版 GGX，和虚幻的 Smith-joint 高光形状不完全一样。另外 URP 没有自动曝光，曝光要在总控里手动调。
+
+## 在 VS Code 里跳转到 URP 源码（F12）
+1. 装插件 HLSL Tools（TimGJones.hlsltools）。
+2. 在工程根目录建 include 链接（Unity 的 include 写的是 `Packages/包名/...`，实际文件在 `Library/PackageCache/包名@版本`）：
+   ```powershell
+   New-Item -ItemType Junction -Path .shaderinclude\Packages\com.unity.render-pipelines.core -Target Library\PackageCache\com.unity.render-pipelines.core@14.0.12
+   New-Item -ItemType Junction -Path .shaderinclude\Packages\com.unity.render-pipelines.universal -Target Library\PackageCache\com.unity.render-pipelines.universal@14.0.12
+   ```
+   升级 URP 后版本号会变，要删掉重建。
+3. 用 VS Code 打开工程根目录。`shadertoolsconfig.json` 已配好 include 路径和 `SHADER_API_D3D11`。
+4. 在函数、结构体、宏上按 F12 跳到定义，Alt+F12 原地预览。shader 里有编译错误时，错误后面的代码可能跳不了，先修错误。

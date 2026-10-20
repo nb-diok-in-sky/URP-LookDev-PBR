@@ -39,3 +39,6 @@ Thumbs.db
 
 # 文章草稿和踩坑日志，写完再决定要不要公开
 /文章草稿/
+
+# VS Code 跳转用的 include 链接（指向 Library/PackageCache 里的 Unity 包源码），每台电脑自己建
+/.shaderinclude/
