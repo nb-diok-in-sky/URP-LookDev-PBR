@@ -84,10 +84,10 @@ Shader "Unlit/URP_Shader"
 
             //Trowbridge-Reitz GGX法线分布函数
             float MyDistributionGGX(float roughness, float NoH)
-            {
-                float a2 = roughness * roughness;
+            {    float a = roughness *roughness;
+                float a2 = a * a;
                 float NoH2 = NoH * NoH;
-                return a2 / PI * pow(NoH2 * (a2 - 1) + 1, 2);
+                return a2 / PI * pow(NoH2 * (a2-1) + 1, 2); 
             }
 
             //Schlick-GGX 几何遮蔽函数
