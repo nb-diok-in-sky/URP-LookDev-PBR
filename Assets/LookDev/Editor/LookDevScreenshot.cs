@@ -57,19 +57,26 @@ public class LookDevScreenshot : EditorWindow
         string file = $"{NextIndex():000}{LabelPart(label)}_{GitTag()}.png";
         string path = Path.Combine(Folder, file);
 
-        var rt = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.ARGB32);
+        // URP 会直接用目标贴图的格式当相机的颜色缓冲（UniversalRenderPipelineCore.cs CreateRenderTextureDescriptor）。
+        // 给 8 位的 ARGB32，亮度在渲染时就被截到 1，Bloom 和 ACES 都拿不到高光，所以先渲染到 HDR 贴图，
+        // 后处理做完以后再拷到 sRGB 贴图里（写入时 GPU 自动做线性 → sRGB 转换），跟 Game 视图上屏一致。
+        var hdrRT = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Linear);
         var prevTarget = cam.targetTexture;
-        cam.targetTexture = rt;
+        cam.targetTexture = hdrRT;
         cam.Render();
         cam.targetTexture = prevTarget;
 
+        var ldrRT = RenderTexture.GetTemporary(Width, Height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+        Graphics.Blit(hdrRT, ldrRT);
+
         var prevActive = RenderTexture.active;
-        RenderTexture.active = rt;
+        RenderTexture.active = ldrRT;
         var tex = new Texture2D(Width, Height, TextureFormat.RGB24, false);
         tex.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
         tex.Apply();
         RenderTexture.active = prevActive;
-        RenderTexture.ReleaseTemporary(rt);
+        RenderTexture.ReleaseTemporary(hdrRT);
+        RenderTexture.ReleaseTemporary(ldrRT);
 
         File.WriteAllBytes(path, tex.EncodeToPNG());
         DestroyImmediate(tex);
