@@ -87,7 +87,7 @@ Shader "Unlit/URP_Shader"
             {    float a = roughness *roughness;
                 float a2 = a * a;
                 float NoH2 = NoH * NoH;
-                return a2 / PI * pow(NoH2 * (a2-1) + 1, 2); 
+                return a2 /( PI * pow(NoH2 * (a2-1) + 1, 2)); 
             }
 
             //Schlick-GGX 几何遮蔽函数
