@@ -55,3 +55,18 @@ URP 的 BRDF 是简化版 GGX，和虚幻的 Smith-joint 高光形状不完全�
    升级 URP 后版本号会变，要删掉重建。
 3. 用 VS Code 打开工程根目录。`shadertoolsconfig.json` 已配好 include 路径和 `SHADER_API_D3D11`。
 4. 在函数、结构体、宏上按 F12 跳到定义，Alt+F12 原地预览。shader 里有编译错误时，错误后面的代码可能跳不了，先修错误。
+
+## 调试探针（一行输出任意变量）
+`Assets/LookDev/Shaders/LookDevProbe.hlsl`。在自己的 shader 里接入三行：
+```
+Properties:  [Toggle(_LD_PROBE_ON)] _LDProbe("调试探针", Float) = 0
+Pass:        #pragma shader_feature_local_fragment _ _LD_PROBE_ON
+             #include "Assets/LookDev/Shaders/LookDevProbe.hlsl"    // 放在 Lighting.hlsl 后面
+```
+在片元着色器任意位置写 `LD_PROBE(变量);`（数值/颜色）、`LD_PROBE_DIR(变量);`（方向）、`LD_PROBE_SIGNED(变量);`（正数绿、负数红）。材质上勾选"调试探针"才生效。
+
+VS Code 快捷键（只在 HLSL 文件里、选中了文字时生效，会占用剪贴板）：
+- `Ctrl+Alt+D`：选中的变量 → 下一行插入 `LD_PROBE(变量);`
+- `Ctrl+Alt+Shift+D`：插入 `LD_PROBE_DIR(变量);`
+- `Ctrl+Alt+S`：插入 `LD_PROBE_SIGNED(变量);`
+- 或者先复制变量名，在空行输入 `ldp` / `ldpd` / `ldps` 按 Tab
