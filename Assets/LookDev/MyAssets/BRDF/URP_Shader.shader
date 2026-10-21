@@ -4,13 +4,13 @@ Shader "Unlit/URP_Shader"
     {
         
         _MRO("MRO贴图",2D) = "white"{}
-        _Normal("法线贴图",2D) = "white"{}
+        _Normal("法线贴图",2D) = "bump"{}
         _BaseColor("基础色贴图",2D) = "white"{}
         _Height("高度贴图",2D) = "white"{}
 
     }
     SubShader
-    {
+    { 
         Tags { "RenderType"="Opaque" }
         LOD 100
 
@@ -118,7 +118,7 @@ Shader "Unlit/URP_Shader"
                }
  
                //菲涅尔效应
-               float fresnelSchlick(float3 F0,float3 lightDirection,float Normal){  
+               float fresnelSchlick(float3 F0,float3 lightDirection,float3 Normal){  
                float cosTheta = dot(lightDirection,Normal);
                return F0 +(1.0-F0) * pow(1-cosTheta,5.0);
 
@@ -177,8 +177,8 @@ float3 EnvBRDFApprox( float3 SpecularColor, float Roughness,float NoV )
                float3 BaseColor = SAMPLE_TEXTURE2D(_BaseColor,sampler_BaseColor,input.uv);//基础色贴图
                float3 normalTS = UnpackNormal(SAMPLE_TEXTURE2D(_Normal,sampler_Normal,input.uv ) );//法线贴图
                float3x3 TBN = float3x3(input.tangentWS,input.bitangentWS,input.normalWS );//TBN
-               float normal = normalize(TransformTangentToWorld(normalTS,TBN));//这个法线才能拿来用
-
+               float3 normal = normalize(TransformTangentToWorld(normalTS,TBN));//这个法线才能拿来用
+ 
   
                float3 CameraPosWS = GetCameraPositionWS();//摄像机位置。
                float3 viewDir = CameraPosWS - input.positionCS;//视觉方向。
@@ -186,7 +186,7 @@ float3 EnvBRDFApprox( float3 SpecularColor, float Roughness,float NoV )
                //下面要整合一大堆接下来需要用到的数值
                float3 F0 =lerp(0.04,BaseColor,MRO.r); //基础反射率 这个是拿去给菲涅尔效应用的
                float k = pow(MRO.g+1,2)/8;//这里用的是直接光照的重映射
-               float4 shadowCoord = TransformWorldToShadowCoord(input.positionCS); 
+               float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS); 
                Light mainLight = GetMainLight(shadowCoord);//获得光照mainLight
                float3 h_main = (mainLight.direction + viewDir)/abs(mainLight.direction + viewDir);  //h半程向量
  
@@ -214,13 +214,13 @@ float3 EnvBRDFApprox( float3 SpecularColor, float Roughness,float NoV )
 
                //接下来处理间接光 
                float3 indirectDiffuse = SampleSH(normal) * diffuseColor;
-               float3 R =reflect(-viewDir,normal);
+               float3 R =reflect(-viewDir,normal); 
                float3 envColor = GlossyEnvironmentReflection(R,input.positionWS,MRO.g,MRO.b);
 
                float3 indirectSpecular = envColor * EnvBRDFApprox(DirectColor ,MRO.g,NoV);
                float3 inDirectColor = (indirectDiffuse + indirectSpecular) ;
                                
-               return float4(DirectColor + inDirectColor ,1);
+               return float4(DirectColor+inDirectColor ,1);
 
             }  
  
