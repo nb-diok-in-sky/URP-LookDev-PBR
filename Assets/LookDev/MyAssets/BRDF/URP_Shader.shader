@@ -170,15 +170,15 @@ Shader "Unlit/URP_Shader"
                 return AB;
             }
 
-            float3 EnvBRDFApprox(float3 SpecularColor, float Roughness, float NoV)
+            float3 EnvBRDFApprox(float3 F0, float Roughness, float NoV)
             {
                 float2 AB = EnvBRDFApproxLazarov(Roughness, NoV);
 
                 // Anything less than 2% is physically impossible and is instead considered to be shadowing
                 // Note: this is needed for the 'specular' show flag to work, since it uses a SpecularColor of 0
-                float F90 = saturate(50.0 * SpecularColor.g);
+                float F90 = saturate(50.0 * F0.g);
 
-                return SpecularColor * AB.x + F90 * AB.y;
+                return F0 * AB.x + F90 * AB.y;
             }
 
             float4 Frag(Varyings input) : SV_Target
@@ -228,7 +228,7 @@ Shader "Unlit/URP_Shader"
                 float3 R = reflect(-viewDir, normal);
                 float3 envColor = GlossyEnvironmentReflection(R, input.positionWS, mro.g, mro.b);
 
-                float3 indirectSpecular = envColor * EnvBRDFApprox(directColor, mro.g, mainLightContext.NoV);
+                float3 indirectSpecular = envColor * EnvBRDFApprox(F0, mro.g, mainLightContext.NoV);
                 float3 indirectColor = (indirectDiffuse + indirectSpecular);
 
                 //下面是debug return
