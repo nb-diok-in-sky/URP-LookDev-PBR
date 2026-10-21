@@ -2,7 +2,7 @@
     "name": "ld-quick-return",
     "displayName": "Look-Dev 快速输出",
     "description": "选中变量，在片元着色器最后一个 return 前插入 return float4(变量, 1)，用来看中间值",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "publisher": "local",
     "engines": {
         "vscode": "^1.80.0"
@@ -19,7 +19,7 @@
             },
             {
                 "command": "ldQuickReturn.insertSigned",
-                "title": "Look-Dev：正负显示选中变量（正绿负红）"
+                "title": "Look-Dev：异常检测（红=负，绿=正，黑=0，蓝=NaN）"
             },
             {
                 "command": "ldQuickReturn.removeAll",

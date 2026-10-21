@@ -112,10 +112,11 @@ async function insert(mode) {
     const wrapped = needParen ? '(' + expr + ')' : expr;
     const at = new vscode.Position(retPos.line, 0);
 
-    // 正负显示：正数绿、负数红（只看第一个分量）
+    // 异常检测：只看"是不是"，不看大小（只看第一个分量）
+    // 红 = 负数，绿 = 正数，黑 = 0，蓝 = NaN。再小的负数也是纯红
     if (mode === 'signed') {
         const v = wrapped + '.x';
-        const line = indent + 'return float4(max(-' + v + ', 0), max(' + v + ', 0), 0, 1); ' + MARK + '\n';
+        const line = indent + 'return float4(' + v + ' < 0, ' + v + ' > 0, isnan(' + v + '), 1); ' + MARK + '\n';
         await editor.edit(b => b.insert(at, line));
         const p = new vscode.Position(retPos.line, indent.length);
         editor.selection = new vscode.Selection(p, p);
