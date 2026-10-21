@@ -8,6 +8,12 @@ Shader "Unlit/URP_Shader"
         _BaseColor("基础色贴图",2D) = "white"{}
         _Height("高度贴图",2D) = "white"{}
 
+        //下面添加一个debug菜单
+        [KeywordEnum(NonUniformResourceIndex,Normal,viewDir,NoL,Metallic,Roughness,AO,Diffuse,DirectColor,inDirectColor)]
+        _DebugView("调试显示",Float) = 0
+
+
+
     }
     SubShader
     { 
@@ -25,6 +31,10 @@ Shader "Unlit/URP_Shader"
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             ///上面这全是阴影的内容 必须要加         
+
+            //下面来声明Debug关键字
+            #pragma shader_feature_local_fragment _DEBUGVIEW_NONE _DEBUGVIEW_NORMAL _DEBUGVIEW_VIEWDIR _DEBUGVIEW_NOL _DEBUGVIEW_METALLIC _DEBUGVIEW_ROUGHNESS _DEBUGVIEW_AO _DEBUGVIEW_DIFFUSECOLOR _DEBUGVIEW_DIRECTCOLOR _DEBUGVIEW_INDIRECTCOLOR
+
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -181,7 +191,7 @@ float3 EnvBRDFApprox( float3 SpecularColor, float Roughness,float NoV )
  
   
                float3 CameraPosWS = GetCameraPositionWS();//摄像机位置。
-               float3 viewDir = CameraPosWS - input.positionCS;//视觉方向。
+               float3 viewDir = CameraPosWS - input.positionWS;//视觉方向。
           
                //下面要整合一大堆接下来需要用到的数值
                float3 F0 =lerp(0.04,BaseColor,MRO.r); //基础反射率 这个是拿去给菲涅尔效应用的
@@ -219,7 +229,32 @@ float3 EnvBRDFApprox( float3 SpecularColor, float Roughness,float NoV )
 
                float3 indirectSpecular = envColor * EnvBRDFApprox(DirectColor ,MRO.g,NoV);
                float3 inDirectColor = (indirectDiffuse + indirectSpecular) ;
-                               
+
+              //下面是debug return
+              #if defined(_DEBUGVIEW_NORMAL)
+              return float4(normal * 0.5 + 0.5, 1);  // 方向向量从 -1~1 挪到 0~1，才看得出颜色
+            #elif defined(_DEBUGVIEW_NOL)
+             return float4(NoL.xxx, 1);  // 一个数复制到 RGB 三个通道，显示成灰度
+       
+          #elif defined(_DEBUFVIEW_VIEWDIR)
+          return float4 (viewDir,1);
+
+         #elif defined(_DEBUGVIEW_METALLIC)
+          return float4(MRO.xxx, 1);
+
+         #elif defined(_DEBUGVIEW_ROUGHNESS)
+          return float4(MRO.yyy, 1);
+        
+         #elif defined(_DEBUGVIEW_AO)
+          return float4(MRO.zzz, 1);
+            #elif defined(_DEBUGVIEW_DIFFUSECOLOR)
+          return float4(diffuseColor.xyz, 1);
+        #elif defined(_DEBUGVIEW_DIRECTCOLOR)
+          return float4(DirectColor.xyz, 1);
+           #elif defined(_DEBUGVIEW_INDIRECTCOLOR)
+          return float4(inDirectColor.xyz, 1);
+            #endif                 
+ 
                return float4(DirectColor+inDirectColor ,1);
 
             }  
