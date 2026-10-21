@@ -7,13 +7,16 @@ using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 // 一键截图：按 F12（或菜单 LookDev/截图）。编辑模式、运行模式都能用。
-// 截的是 LookDev 相机的画面，固定 1920×1080，存到 工程根目录/Screenshots/。
+// 截的是 LookDev 相机的画面（带 ACES、Bloom、SSAO 等后处理），固定 1920×1080，存到 工程根目录/Screenshots/，
+// 同时复制到剪贴板，可以直接 Ctrl+V 贴进 PureRef。
+// 编辑模式下 LookDev 相机跟着 Scene 视图走，所以截到的就是你在 Scene 视图里看的角度。
 // 文件名 = 序号_标签_git提交号.png；MyAssets 里有没提交的改动时，提交号后面会加 "-未提交"。
 // 标签在菜单 LookDev/截图设置 里填，比如 "坑03_背光面死黑"。
 public class LookDevScreenshot : EditorWindow
 {
     const string LabelKey = "LookDev.Screenshot.Label";
     const string RevealKey = "LookDev.Screenshot.Reveal";
+    const string ClipboardKey = "LookDev.Screenshot.Clipboard";
     const string Folder = "Screenshots";
     const int Width = 1920, Height = 1080;
 
@@ -26,7 +29,7 @@ public class LookDevScreenshot : EditorWindow
     static void OpenWindow()
     {
         var w = GetWindow<LookDevScreenshot>(true, "LookDev 截图");
-        w.minSize = new Vector2(380, 150);
+        w.minSize = new Vector2(380, 190);
     }
 
     void OnGUI()
@@ -34,6 +37,9 @@ public class LookDevScreenshot : EditorWindow
         EditorGUILayout.LabelField("标签会写进文件名，比如：坑03_背光面死黑。留空就只有序号。", EditorStyles.wordWrappedMiniLabel);
         string label = EditorGUILayout.TextField("标签", EditorPrefs.GetString(LabelKey, ""));
         EditorPrefs.SetString(LabelKey, label);
+        bool clipboard = EditorGUILayout.Toggle("同时复制到剪贴板", EditorPrefs.GetBool(ClipboardKey, true));
+        EditorPrefs.SetBool(ClipboardKey, clipboard);
+        LookDevSceneViewFollow.Enabled = EditorGUILayout.Toggle("Game 视图跟随 Scene 视图", LookDevSceneViewFollow.Enabled);
         bool reveal = EditorGUILayout.Toggle("截完打开文件夹", EditorPrefs.GetBool(RevealKey, false));
         EditorPrefs.SetBool(RevealKey, reveal);
         GUILayout.Space(8);
@@ -45,6 +51,7 @@ public class LookDevScreenshot : EditorWindow
     {
         var cam = FindLookDevCamera();
         if (cam == null) { Debug.LogWarning("[LookDev] 场景里找不到相机，没截图。"); return null; }
+        LookDevSceneViewFollow.SyncNow();
 
         Directory.CreateDirectory(Folder);
         string file = $"{NextIndex():000}{LabelPart(label)}_{GitTag()}.png";
@@ -68,12 +75,32 @@ public class LookDevScreenshot : EditorWindow
         DestroyImmediate(tex);
 
         _last = file;
-        Debug.Log("[LookDev] 已截图：" + Path.GetFullPath(path));
+        bool clipboard = EditorPrefs.GetBool(ClipboardKey, true);
+        if (clipboard) CopyImageToClipboard(Path.GetFullPath(path));
+        Debug.Log("[LookDev] 已截图" + (clipboard ? "并复制到剪贴板" : "") + "：" + Path.GetFullPath(path));
         if (EditorPrefs.GetBool(RevealKey, false)) EditorUtility.RevealInFinder(path);
         return path;
     }
 
-    static Camera FindLookDevCamera()
+    // Unity 自己没有"把图片放进剪贴板"的接口，借 Windows 自带的 PowerShell 做；后台跑，不卡编辑器
+    static void CopyImageToClipboard(string fullPath)
+    {
+        string p = fullPath.Replace("'", "''");
+        string cmd = "Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; " +
+                     $"$img = [System.Drawing.Image]::FromFile('{p}'); [System.Windows.Forms.Clipboard]::SetImage($img); $img.Dispose()";
+        try
+        {
+            var psi = new ProcessStartInfo("powershell", "-NoProfile -STA -WindowStyle Hidden -Command \"" + cmd + "\"")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            Process.Start(psi);
+        }
+        catch (System.Exception e) { Debug.LogWarning("[LookDev] 复制到剪贴板失败：" + e.Message); }
+    }
+
+    public static Camera FindLookDevCamera()
     {
         var ctrl = FindObjectOfType<LookDevController>();
         if (ctrl != null && ctrl.viewCamera != null) return ctrl.viewCamera;
@@ -129,5 +156,55 @@ public class LookDevScreenshot : EditorWindow
             }
         }
         catch { return null; }
+    }
+}
+
+// 编辑模式下让 LookDev 相机（Game 视图）跟着 Scene 视图的位置、角度、FOV 走。
+// Scene 视图本身不带 ACES、Bloom 这些后处理，所以截图还是用 LookDev 相机，只是位置跟着你。
+// 运行模式下不跟，交给 LookDevOrbitCamera。菜单 LookDev/Game 视图跟随 Scene 视图 可以开关。
+[InitializeOnLoad]
+public static class LookDevSceneViewFollow
+{
+    const string Key = "LookDev.FollowSceneView";
+    const string MenuPath = "LookDev/Game 视图跟随 Scene 视图";
+    static Camera _cam;
+
+    static LookDevSceneViewFollow() { EditorApplication.update += Update; }
+
+    public static bool Enabled
+    {
+        get => EditorPrefs.GetBool(Key, true);
+        set => EditorPrefs.SetBool(Key, value);
+    }
+
+    [MenuItem(MenuPath, priority = 2)]
+    static void Toggle() { Enabled = !Enabled; }
+
+    [MenuItem(MenuPath, true)]
+    static bool ToggleValidate() { Menu.SetChecked(MenuPath, Enabled); return true; }
+
+    static void Update()
+    {
+        if (Enabled) SyncNow();
+    }
+
+    public static void SyncNow()
+    {
+        if (!Enabled || EditorApplication.isPlayingOrWillChangePlaymode) return;
+        var view = SceneView.lastActiveSceneView;
+        if (view == null || view.camera == null) return;
+        if (_cam == null) _cam = LookDevScreenshot.FindLookDevCamera();
+        if (_cam == null) return;
+
+        var src = view.camera;
+        var t = _cam.transform;
+        // 只在有变化时才写，避免每帧都改场景
+        if (t.position == src.transform.position && t.rotation == src.transform.rotation &&
+            Mathf.Approximately(_cam.fieldOfView, src.fieldOfView) && _cam.orthographic == src.orthographic) return;
+
+        t.SetPositionAndRotation(src.transform.position, src.transform.rotation);
+        _cam.fieldOfView = src.fieldOfView;
+        _cam.orthographic = src.orthographic;
+        _cam.orthographicSize = src.orthographicSize;
     }
 }
