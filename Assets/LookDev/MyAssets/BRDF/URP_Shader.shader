@@ -97,15 +97,15 @@ Shader "Unlit/URP_Shader"
             }
 
             //史密斯的方法  几何遮蔽函数
-            float MyGeometrySmith(float NoV, float VoL, float k)
+            float MyGeometrySmith(float NoV, float NoL, float k)
             {
                 float ggx1 = MyGeometrySchlickGGX(k, NoV);
-                float ggx2 = MyGeometrySchlickGGX(saturate(VoL), k);
+                float ggx2 = MyGeometrySchlickGGX(k,saturate(NoL));
                 return ggx1 * ggx2;
             }
 
             //菲涅尔效应    
-            float MyFresnelSchlick(float3 F0, float VoH)
+            float3 MyFresnelSchlick(float3 F0, float VoH)
             {
                 float cosTheta = VoH;
                 return F0 + (1.0 - F0) * pow(1 - cosTheta, 5.0);
@@ -145,14 +145,14 @@ Shader "Unlit/URP_Shader"
             void MyInitBRDFContext(inout MyBRDFContext brdfContext, MyLightContext lightContext, float roughness, float k, float3 F0, float3 diffuseColor)
             {
                 brdfContext.D = MyDistributionGGX(roughness, lightContext.NoH);
-                brdfContext.G = MyGeometrySmith(lightContext.NoV, lightContext.VoL, k);
+                brdfContext.G = MyGeometrySmith(lightContext.NoV, lightContext.NoL, k);
                 brdfContext.F = MyFresnelSchlick(F0, lightContext.VoH);
                 brdfContext.specularColor = brdfContext.D * brdfContext.F * brdfContext.G / max(4*saturate(lightContext.NoL)*lightContext.NoV,0.0001);
                 brdfContext.diffuseColor = diffuseColor / PI;
             }
 
             float3 MyDirectBRDF(MyLightContext lightContext,inout MyBRDFContext brdfContext)//用这个函数之前需要先packeg两个结构体
-            {    brdfContext.diffuseColor *lightContext.radiance *saturate(lightContext.NoL) ;
+            {   brdfContext.diffuseColor = brdfContext.diffuseColor *lightContext.radiance *saturate(lightContext.NoL) ;
                 return brdfContext.specularColor * lightContext.radiance *saturate(lightContext.NoL);
             }
 
