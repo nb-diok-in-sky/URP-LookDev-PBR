@@ -65,8 +65,14 @@ Pass:        #pragma shader_feature_local_fragment _ _LD_PROBE_ON
 ```
 在片元着色器任意位置写 `LD_PROBE(变量);`（数值/颜色）、`LD_PROBE_DIR(变量);`（方向）、`LD_PROBE_SIGNED(变量);`（正数绿、负数红）。材质上勾选"调试探针"才生效。
 
-VS Code 快捷键（只在 HLSL 文件里、选中了文字时生效，会占用剪贴板）：
-- `Ctrl+Alt+D`：选中的变量 → 下一行插入 `LD_PROBE(变量);`
-- `Ctrl+Alt+Shift+D`：插入 `LD_PROBE_DIR(变量);`
-- `Ctrl+Alt+S`：插入 `LD_PROBE_SIGNED(变量);`
-- 或者先复制变量名，在空行输入 `ldp` / `ldpd` / `ldps` 按 Tab
+## 快速输出中间值（VS Code 插件，推荐）
+插件源码在 `Tools/vscode-ld-quick-return/`，安装：把这个文件夹复制到 `%USERPROFILE%\.vscode\extensions\local.ld-quick-return-0.0.1`，重启 VS Code。
+
+- **Ctrl+Alt+D**：选中一个变量或表达式（光标停在变量上也行），插件会找到片元着色器（`#pragma fragment` 指定的函数）**最后一个 return**，在它前面插入 `return float4(变量, 1); // LD临时`，光标跳过去
+  - 自动判断维度：`float` 补 `.xxx`，`float3/float4` 补 `.rgb`；名字像方向的（`xxxDir`、`normal`、`tangent`、`R`、`h`）自动 `* 0.5 + 0.5`
+  - 认不出维度时弹出列表让你选
+- **Ctrl+Alt+R**：删掉所有带 `// LD临时` 的行
+- 插入是一次编辑，**Ctrl+Z 就能撤销**
+- 不用改 shader、不用勾选项。调试时记得关掉总控里的 ACES
+
+上面的调试探针宏（LD_PROBE）适合想在函数中间、或者在非片元函数里输出的情况，代码片段 `ldp` / `ldpd` / `ldps` 还在。
