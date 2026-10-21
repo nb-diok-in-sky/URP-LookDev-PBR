@@ -8,7 +8,7 @@ Shader "Unlit/URP_Shader"
         _Height("高度贴图", 2D) = "white" {}
 
         //下面添加一个debug菜单
-        [KeywordEnum(None, Normal, ViewDir, NoL, Metallic, Roughness, AO, DiffuseColor, DirectColor, IndirectColor)]
+        [KeywordEnum(None, Normal, ViewDir, NoL, Metallic, Roughness, AO, DiffuseColor,mainLightBRDF,additionalLightBRDF,DirectColor, IndirectColor)]
         _DebugView("调试显示", Float) = 0
     }
 
@@ -28,11 +28,11 @@ Shader "Unlit/URP_Shader"
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             ///上面这全是阴影的内容 必须要加
-
+                                                                            
             //下面来声明Debug关键字
-            #pragma shader_feature_local_fragment _DEBUGVIEW_NONE _DEBUGVIEW_NORMAL _DEBUGVIEW_VIEWDIR _DEBUGVIEW_NOL _DEBUGVIEW_METALLIC _DEBUGVIEW_ROUGHNESS _DEBUGVIEW_AO _DEBUGVIEW_DIFFUSECOLOR _DEBUGVIEW_DIRECTCOLOR _DEBUGVIEW_INDIRECTCOLOR
+            #pragma shader_feature_local_fragment _DEBUGVIEW_NONE _DEBUGVIEW_NORMAL _DEBUGVIEW_VIEWDIR _DEBUGVIEW_NOL _DEBUGVIEW_METALLIC _DEBUGVIEW_ROUGHNESS _DEBUGVIEW_AO _DEBUGVIEW_DIFFUSECOLOR _DEBUGVIEW_MAINLIGHTBRDF _DEBUGVIEW_ADDITIONALLIGHTBRDF _DEBUGVIEW_DIRECTCOLOR _DEBUGVIEW_INDIRECTCOLOR
 
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"                        
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             struct Attributes
@@ -104,10 +104,10 @@ Shader "Unlit/URP_Shader"
                 return ggx1 * ggx2;
             }
 
-            //菲涅尔效应
-            float MyFresnelSchlick(float3 F0, float NoL)
+            //菲涅尔效应    
+            float MyFresnelSchlick(float3 F0, float VoH)
             {
-                float cosTheta = NoL;
+                float cosTheta = VoH;
                 return F0 + (1.0 - F0) * pow(1 - cosTheta, 5.0);
             }
 
@@ -115,7 +115,7 @@ Shader "Unlit/URP_Shader"
             struct MyLightContext//这里面要装很多计算用的数据，把要提前计算的东西封装好
             {
                 float NoL;
-                float NoV;
+                float NoV; 
                 float NoH;
                 float VoH;
                 float VoL;
@@ -146,14 +146,14 @@ Shader "Unlit/URP_Shader"
             {
                 brdfContext.D = MyDistributionGGX(roughness, lightContext.NoH);
                 brdfContext.G = MyGeometrySmith(lightContext.NoV, lightContext.VoL, k);
-                brdfContext.F = MyFresnelSchlick(F0, lightContext.NoL);
-                brdfContext.specularColor = brdfContext.D * brdfContext.F * brdfContext.G / (4 * saturate(lightContext.NoL) * lightContext.NoV + 0.0001);
+                brdfContext.F = MyFresnelSchlick(F0, lightContext.VoH);
+                brdfContext.specularColor = brdfContext.D * brdfContext.F * brdfContext.G / max(4*saturate(lightContext.NoL)*lightContext.NoV,0.0001);
                 brdfContext.diffuseColor = diffuseColor / PI;
             }
 
-            float3 MyDirectBRDF(MyLightContext lightContext, MyBRDFContext brdfContext)//用这个函数之前需要先packeg两个结构体
-            {
-                return brdfContext.specularColor * lightContext.radiance * lightContext.NoL;//加个0.00001 防止偶尔可能出现的除数为0的bug
+            float3 MyDirectBRDF(MyLightContext lightContext,inout MyBRDFContext brdfContext)//用这个函数之前需要先packeg两个结构体
+            {    brdfContext.diffuseColor *lightContext.radiance *saturate(lightContext.NoL) ;
+                return brdfContext.specularColor * lightContext.radiance *saturate(lightContext.NoL);
             }
 
             //下面是间接光的公式
@@ -246,13 +246,17 @@ Shader "Unlit/URP_Shader"
                     return float4(mro.zzz, 1);
                 #elif defined(_DEBUGVIEW_DIFFUSECOLOR)
                     return float4(diffuseColor.xyz, 1);
-                #elif defined(_DEBUGVIEW_DIRECTCOLOR)
+                #elif defined(_DEBUGVIEW_MAINLIGHTBRDF)
+                    return float4(mainLightBRDF,1);
+                #elif defined(_DEBUGVIEW_ADDITIONALLIGHTBRDF)
+                    return float4(additionalLightBRDF,1); 
+                #elif defined(_DEBUGVIEW_DIRECTCOLOR) 
                     return float4(directColor.xyz, 1);
                 #elif defined(_DEBUGVIEW_INDIRECTCOLOR)
                     return float4(indirectColor.xyz, 1);
                 #endif
 
-                return float4(directColor + indirectColor, 1);
+                return float4(directColor + indirectColor+brdfContext.diffuseColor , 1);
             }
 
             ENDHLSL
