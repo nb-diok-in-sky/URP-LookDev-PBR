@@ -71,7 +71,9 @@ Pass:        #pragma shader_feature_local_fragment _ _LD_PROBE_ON
 - **Ctrl+Alt+D**：选中一个变量或表达式（光标停在变量上也行），插件会找到片元着色器（`#pragma fragment` 指定的函数）**最后一个 return**，在它前面插入 `return float4(变量, 1); // LD临时`，光标跳过去
   - 自动判断维度：`float` 补 `.xxx`，`float3/float4` 补 `.rgb`；名字像方向的（`xxxDir`、`normal`、`tangent`、`R`、`h`）自动 `* 0.5 + 0.5`
   - 认不出维度时弹出列表让你选
+- **Ctrl+Alt+S**：正负显示：正数绿、负数红（看第一个分量）。负数在普通显示里和 0 一样是黑的，怀疑有负数就用它
 - **Ctrl+Alt+R**：删掉所有带 `// LD临时` 的行
+- 选中的是一个单独的名字、但片元函数里没有这个变量（比如别的函数的参数 `NoV`）时会提示，不会插入
 - 插入是一次编辑，**Ctrl+Z 就能撤销**
 - 不用改 shader、不用勾选项。调试时记得关掉总控里的 ACES
 

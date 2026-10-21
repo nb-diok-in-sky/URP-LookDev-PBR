@@ -2,19 +2,46 @@
     "name": "ld-quick-return",
     "displayName": "Look-Dev 快速输出",
     "description": "选中变量，在片元着色器最后一个 return 前插入 return float4(变量, 1)，用来看中间值",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "publisher": "local",
-    "engines": { "vscode": "^1.80.0" },
+    "engines": {
+        "vscode": "^1.80.0"
+    },
     "main": "./extension.js",
-    "activationEvents": ["onLanguage:hlsl"],
+    "activationEvents": [
+        "onLanguage:hlsl"
+    ],
     "contributes": {
         "commands": [
-            { "command": "ldQuickReturn.insert", "title": "Look-Dev：在片元最后一个 return 前输出选中变量" },
-            { "command": "ldQuickReturn.removeAll", "title": "Look-Dev：删除所有临时输出" }
+            {
+                "command": "ldQuickReturn.insert",
+                "title": "Look-Dev：在片元最后一个 return 前输出选中变量"
+            },
+            {
+                "command": "ldQuickReturn.insertSigned",
+                "title": "Look-Dev：正负显示选中变量（正绿负红）"
+            },
+            {
+                "command": "ldQuickReturn.removeAll",
+                "title": "Look-Dev：删除所有临时输出"
+            }
         ],
         "keybindings": [
-            { "command": "ldQuickReturn.insert", "key": "ctrl+alt+d", "when": "editorTextFocus && editorLangId == 'hlsl'" },
-            { "command": "ldQuickReturn.removeAll", "key": "ctrl+alt+r", "when": "editorTextFocus && editorLangId == 'hlsl'" }
+            {
+                "command": "ldQuickReturn.insert",
+                "key": "ctrl+alt+d",
+                "when": "editorTextFocus && editorLangId == 'hlsl'"
+            },
+            {
+                "command": "ldQuickReturn.insertSigned",
+                "key": "ctrl+alt+s",
+                "when": "editorTextFocus && editorLangId == 'hlsl'"
+            },
+            {
+                "command": "ldQuickReturn.removeAll",
+                "key": "ctrl+alt+r",
+                "when": "editorTextFocus && editorLangId == 'hlsl'"
+            }
         ]
     }
 }

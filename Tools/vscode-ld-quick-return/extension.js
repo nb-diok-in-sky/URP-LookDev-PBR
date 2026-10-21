@@ -66,7 +66,14 @@ function suffixFor(dim) {
     return '.rgb';
 }
 
-async function insert() {
+// 一个单独的名字（不带 . 的），在片元函数里有没有声明过
+function declaredInBody(bodyText, ident) {
+    const re = new RegExp('\\b(?:float|half|real|min16float|int|uint|bool)[234]?(?:x[234])?\\s+' + ident + '\\b'
+        + '|\\b[A-Z]\\w*\\s+' + ident + '\\s*[;=]');
+    return re.test(bodyText);
+}
+
+async function insert(mode) {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return;
     const doc = editor.document;
@@ -93,6 +100,29 @@ async function insert() {
     const retLine = doc.lineAt(retPos.line);
     const indent = retLine.text.slice(0, retLine.firstNonWhitespaceCharacterIndex);
 
+    // 选的是单独一个名字，但片元函数里没有这个变量：多半选到了别的函数的参数或者结构体字段
+    const fragSignature = body.clean.slice(0, body.open).split(/\n/).slice(-3).join('\n');
+    if (/^\w+$/.test(expr) && !declaredInBody(inner, expr) && !new RegExp('\\b' + expr + '\\b').test(fragSignature)) {
+        vscode.window.showWarningMessage('Look-Dev：片元函数里没有叫 ' + expr + ' 的变量（可能是别的函数的参数或结构体字段），'
+            + '请选片元函数里实际用到的写法，比如 xxxContext.' + expr);
+        return;
+    }
+
+    const needParen = /[^\w.]/.test(expr);
+    const wrapped = needParen ? '(' + expr + ')' : expr;
+    const at = new vscode.Position(retPos.line, 0);
+
+    // 正负显示：正数绿、负数红（只看第一个分量）
+    if (mode === 'signed') {
+        const v = wrapped + '.x';
+        const line = indent + 'return float4(max(-' + v + ', 0), max(' + v + ', 0), 0, 1); ' + MARK + '\n';
+        await editor.edit(b => b.insert(at, line));
+        const p = new vscode.Position(retPos.line, indent.length);
+        editor.selection = new vscode.Selection(p, p);
+        editor.revealRange(new vscode.Range(p, p), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+        return;
+    }
+
     // 决定怎么补成 float4
     let suffix;
     const dim = guessDim(text, expr);
@@ -112,11 +142,7 @@ async function insert() {
     const lastIdent = (expr.match(/(\w+)\s*$/) || [])[1] || '';
     if (dim && dim >= 3 && isDirectionName(lastIdent)) suffix = '.rgb * 0.5 + 0.5';
 
-    const needParen = /[^\w.]/.test(expr);
-    const value = (needParen ? '(' + expr + ')' : expr) + suffix;
-    const line = indent + 'return float4(' + value + ', 1); ' + MARK + '\n';
-
-    const at = new vscode.Position(retPos.line, 0);
+    const line = indent + 'return float4(' + wrapped + suffix + ', 1); ' + MARK + '\n';
     await editor.edit(b => b.insert(at, line));
     const pos = new vscode.Position(retPos.line, indent.length);
     editor.selection = new vscode.Selection(pos, pos);
@@ -136,9 +162,10 @@ async function removeAll() {
 
 function activate(context) {
     context.subscriptions.push(
-        vscode.commands.registerCommand('ldQuickReturn.insert', insert),
+        vscode.commands.registerCommand('ldQuickReturn.insert', () => insert('auto')),
+        vscode.commands.registerCommand('ldQuickReturn.insertSigned', () => insert('signed')),
         vscode.commands.registerCommand('ldQuickReturn.removeAll', removeAll)
     );
 }
 function deactivate() {}
-module.exports = { activate, deactivate, _test: { findFragmentBody, guessDim, suffixFor, blankComments, isDirectionName } };
+module.exports = { activate, deactivate, _test: { findFragmentBody, guessDim, suffixFor, blankComments, isDirectionName, declaredInBody } };
