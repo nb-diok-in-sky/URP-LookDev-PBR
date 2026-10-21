@@ -12,7 +12,7 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _DEBUGVIEW_DIRECTCOLOR
+  - _DEBUGVIEW_NONE
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -46,6 +46,6 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _DebugView: 8
+    - _DebugView: 0
     m_Colors: []
   m_BuildTextureStacks: []
