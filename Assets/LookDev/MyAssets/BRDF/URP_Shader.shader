@@ -6,12 +6,16 @@ Shader "Unlit/URP_Shader"
         _Normal("法线贴图", 2D) = "bump" {}
         _BaseColor("基础色贴图", 2D) = "white" {}
         _Height("高度贴图", 2D) = "white" {}
-
+//下面是各类数值的一个基础强度 用来自由调参数看的 
+        _MetallicStrength ("金属度倍数", Range(0, 1)) = 1
+        _RoughnessStrength ("粗糙度倍数", Range(0, 1)) = 1
+        _AOStrength ("AO 强度", Range(0, 3)) = 1
+        _BaseColorTint("基础色",Color) = (1,1,1,1)
         //下面添加一个debug菜单
         [KeywordEnum(None, Normal, ViewDir, NoL, Metallic, Roughness, AO, DiffuseColor,mainLightBRDF,additionalLightBRDF,DirectColor, IndirectColor)]
         _DebugView("调试显示", Float) = 0
     }
-
+ 
     SubShader
     {
         Tags { "RenderType" = "Opaque" }
@@ -55,6 +59,12 @@ Shader "Unlit/URP_Shader"
 
             // 设定走太阳散射需要的步长
             CBUFFER_START(UnityPerMaterial)
+                float _MetallicStrength;
+                float _RoughnessStrength;
+                float _AOStrength;
+                float4 _BaseColorTint;
+
+
             CBUFFER_END
 
             TEXTURE2D(_MRO);
@@ -135,7 +145,7 @@ Shader "Unlit/URP_Shader"
             {
                 float3 h = (light.direction + viewDir) / length(light.direction + viewDir);
                 lightContext.NoL = dot(normal, light.direction);
-                lightContext.NoV = saturate(abs(dot(normal,viewDir)));  //这个就不省点乘了 直接用就是
+                lightContext.NoV = saturate(abs(dot(normal,viewDir))+1e-5 );  //这个就不省点乘了 直接用就是
                 lightContext.NoH = saturate(dot(normal, h));
                 lightContext.VoH = saturate(dot(viewDir, h));
                 lightContext.VoL = dot(viewDir, light.direction);
@@ -184,7 +194,14 @@ Shader "Unlit/URP_Shader"
             float4 Frag(Varyings input) : SV_Target
             {
                 float3 mro = SAMPLE_TEXTURE2D(_MRO, sampler_MRO, input.uv);//MRO贴图
+            //下面是MRO的具体数值，用来在white时期使用
+                mro.r = mro.r * _MetallicStrength;
+                mro.g = mro.g * _RoughnessStrength;
+                mro.b = mro.b * _AOStrength;
+            //下面也是基础色的乘法，是用来在white时期使用
                 float3 baseColor = SAMPLE_TEXTURE2D(_BaseColor, sampler_BaseColor, input.uv);//基础色贴图
+                baseColor = baseColor * _BaseColorTint;
+
                 float3 normalTS = UnpackNormal(SAMPLE_TEXTURE2D(_Normal, sampler_Normal, input.uv));//法线贴图
                 float3x3 TBN = float3x3(input.tangentWS, input.bitangentWS, input.normalWS);//TBN
                 float3 normal = normalize(TransformTangentToWorld(normalTS, TBN));//这个法线才能拿来用
@@ -202,12 +219,12 @@ Shader "Unlit/URP_Shader"
                 //下面来打包几个数据结构体
                 //为了测试的时候方便传入传出数值 直接用结构体打包需要的数据，配合方法直接算
                 MyLightContext mainLightContext;//主光源的数据
-                MyBRDFContext brdfContext;
+                MyBRDFContext mainLightBRDFContext;
 
                 MyInitLightContext(mainLightContext, normal, viewDir, mainLight);
-                MyInitBRDFContext(brdfContext, mainLightContext, mro.g, k, F0, diffuseColor);
+                MyInitBRDFContext(mainLightBRDFContext, mainLightContext, mro.g, k, F0, diffuseColor);
 
-                float3 mainLightBRDF = MyDirectBRDF(mainLightContext, brdfContext);//这都是平行光的brdf结果
+                float3 mainLightBRDF = MyDirectBRDF(mainLightContext, mainLightBRDFContext);//这都是平行光的brdf结果
                 float3 additionalLightBRDF = 0;
 
                 //下面来搞其他的直射光BRDF
@@ -216,8 +233,10 @@ Shader "Unlit/URP_Shader"
                 {
                     Light light = GetAdditionalLight(i, input.positionWS, half4(1, 1, 1, 1));
                     MyLightContext additionalLightContext;
+                    MyBRDFContext additionalLightBRDFContext;
                     MyInitLightContext(additionalLightContext, normal, viewDir, light);
-                    additionalLightBRDF += MyDirectBRDF(additionalLightContext, brdfContext);
+                    MyInitBRDFContext(additionalLightBRDFContext,additionalLightContext,mro.g,k,F0,diffuseColor);
+                    additionalLightBRDF += MyDirectBRDF(additionalLightContext, additionalLightBRDFContext);
                 }
 
                 float3 directColor = additionalLightBRDF + mainLightBRDF;
