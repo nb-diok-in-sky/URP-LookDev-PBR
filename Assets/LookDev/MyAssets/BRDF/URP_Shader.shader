@@ -9,7 +9,7 @@ Shader "Unlit/URP_Shader"
 //下面是各类数值的一个基础强度 用来自由调参数看的 
         _MetallicStrength ("金属度倍数", Range(0, 1)) = 1
         _RoughnessStrength ("粗糙度倍数", Range(0, 1)) = 1
-        _AOStrength ("AO 强度", Range(0, 3)) = 1
+        _AOStrength ("AO 强度", Range(0, 1)) = 1
         _BaseColorTint("基础色",Color) = (1,1,1,1)
         //下面添加一个debug菜单
         [KeywordEnum(None, Normal, ViewDir, NoL, Metallic, Roughness, AO, DiffuseColor,mainLightBRDF,additionalLightBRDF,DirectColor, IndirectColor)]
@@ -274,6 +274,7 @@ Shader "Unlit/URP_Shader"
                 #elif defined(_DEBUGVIEW_INDIRECTCOLOR)
                     return float4(indirectColor.xyz, 1);
                 #endif
+
                 return float4(directColor + indirectColor, 1);
             }
 
