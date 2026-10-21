@@ -224,12 +224,12 @@ Shader "Unlit/URP_Shader"
                 //现在的Lambert就是集合完毕所有直射光照的东西了
 
                 //接下来处理间接光
-                float3 indirectDiffuse = SampleSH(normal) * diffuseColor;
+                float3 indirectDiffuse = SampleSH(normal) * diffuseColor *mro.b ;
                 float3 R = reflect(-viewDir, normal);
                 float3 envColor = GlossyEnvironmentReflection(R, input.positionWS, mro.g, mro.b);
 
                 float3 indirectSpecular = envColor * EnvBRDFApprox(F0, mro.g, mainLightContext.NoV);
-                float3 indirectColor = (indirectDiffuse + indirectSpecular);
+                float3 indirectColor = (indirectDiffuse + indirectSpecular) ;
 
                 //下面是debug return
                 #if defined(_DEBUGVIEW_NORMAL)
@@ -256,7 +256,7 @@ Shader "Unlit/URP_Shader"
                     return float4(indirectColor.xyz, 1);
                 #endif
 
-                return float4(directColor + indirectColor+brdfContext.diffuseColor , 1);
+                return float4(directColor + indirectColor, 1);
             }
 
             ENDHLSL
