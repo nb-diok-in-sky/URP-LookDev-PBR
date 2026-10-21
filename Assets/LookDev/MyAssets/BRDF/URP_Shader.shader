@@ -135,9 +135,9 @@ Shader "Unlit/URP_Shader"
             {
                 float3 h = (light.direction + viewDir) / length(light.direction + viewDir);
                 lightContext.NoL = dot(normal, light.direction);
-                lightContext.NoV = dot(normal, viewDir);  //这个就不省点乘了 直接用就是
-                lightContext.NoH = dot(normal, h);
-                lightContext.VoH = dot(viewDir, h);
+                lightContext.NoV = saturate(abs(dot(normal,viewDir)));  //这个就不省点乘了 直接用就是
+                lightContext.NoH = saturate(dot(normal, h));
+                lightContext.VoH = saturate(dot(viewDir, h));
                 lightContext.VoL = dot(viewDir, light.direction);
                 lightContext.radiance = light.color * light.shadowAttenuation * light.distanceAttenuation;
             }
@@ -255,7 +255,6 @@ Shader "Unlit/URP_Shader"
                 #elif defined(_DEBUGVIEW_INDIRECTCOLOR)
                     return float4(indirectColor.xyz, 1);
                 #endif
-
                 return float4(directColor + indirectColor, 1);
             }
 
