@@ -277,7 +277,7 @@ Shader "Unlit/URP_Shader"
               return float4(normal * 0.5 + 0.5, 1);  // 方向向量从 -1~1 挪到 0~1，才看得出颜色
 
             #elif defined(_DEBUGVIEW_NOL)
-             return float4(NoL.xxx, 1);  // 一个数复制到 RGB 三个通道，显示成灰度
+             return float4(mainLightContext.NoL.xxx, 1);  // 一个数复制到 RGB 三个通道，显示成灰度
          
             #elif defined(_DEBUGVIEW_VIEWDIR)
             return float4 (viewDir*0.5 +0.5 ,1);
