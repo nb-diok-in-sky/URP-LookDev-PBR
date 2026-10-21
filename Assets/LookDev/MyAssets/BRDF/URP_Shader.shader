@@ -8,8 +8,9 @@ Shader "Unlit/URP_Shader"
         _BaseColor("基础色贴图",2D) = "white"{}
         _Height("高度贴图",2D) = "white"{}
 
+
         //下面添加一个debug菜单
-        [KeywordEnum(NonUniformResourceIndex,Normal,viewDir,NoL,Metallic,Roughness,AO,Diffuse,DirectColor,inDirectColor)]
+        [KeywordEnum(None,Normal,viewDir,NoL,Metallic,Roughness,AO,diffuseColor,DirectColor,inDirectColor)]
         _DebugView("调试显示",Float) = 0
 
 
@@ -69,6 +70,9 @@ Shader "Unlit/URP_Shader"
                   
             };
 
+          
+
+
                       // 设定走太阳散射需要的步长
            
             CBUFFER_START(UnityPerMaterial)
@@ -105,7 +109,9 @@ Shader "Unlit/URP_Shader"
                 output.uv = input.uv;
                 return output;
             }
-          
+
+
+            
              //Trowbridge-Reitz GGX法线分布函数
                float T_D_GGX(float Roughness,float NoH){
                float a2 = Roughness * Roughness; 
@@ -121,36 +127,71 @@ Shader "Unlit/URP_Shader"
                }
                  
                //史密斯的方法  几何遮蔽函数
-               float Smith_Method(float NoV ,float3 viewDir,float3 lightDirection,float k ){  
+               float Smith_Method(float NoV ,float VoL,float k ){  
                float ggx1 = S_GGX(k,NoV);
-               float ggx2 = S_GGX(saturate(dot(lightDirection,viewDir)),k);
+               float ggx2 = S_GGX(saturate(VoL),k);
                 return ggx1 *ggx2;
                }
  
                //菲涅尔效应
-               float fresnelSchlick(float3 F0,float3 lightDirection,float3 Normal){  
-               float cosTheta = dot(lightDirection,Normal);
+               float fresnelSchlick(float3 F0,float NoL){  
+               float cosTheta = NoL;
                return F0 +(1.0-F0) * pow(1-cosTheta,5.0);
 
                }
+
+          
+            //为了测试的时候方便传入传出数值 直接用结构体打包需要的数据，配合方法直接算
+              struct myLightContext{//这里面要装很多计算用的数据，把要提前计算的东西封装好
+             float NoL;
+             float NoV;
+             float NoH;
+             float VoH;
+             float VoL;
+             float3 radiance; 
+            };
+
+              struct myBRDFContext{
+                float D;
+                float G;
+                float F;
+                float3 SpecularColor;
+                float3 DiffuseColor;
+                 
+              };
+
+
+
  
+            void packageLightContext(inout myLightContext data,float3 Normal,float3 viewDir,Light light){
+                float3 h = (light.direction+viewDir)/length(light.direction +viewDir);
+                data.NoL = dot(Normal,light.direction);
+                data.NoV = dot(Normal,viewDir);  //这个就不省点乘了 直接用就是
+                data.NoH = dot(Normal,h);
+                data.VoH = dot(viewDir,h);
+                data.VoL = dot(viewDir,light.direction);
+                data.radiance = light.color * light.shadowAttenuation *light.distanceAttenuation;
+            }
+    
+          
 
-               float DirectBRDF(float3 Normal,Light light,float Roughness,float NoH, float3 viewDir, float k ,float NoV,float F0,float3 diffuseColor){
-               float NoL = saturate(dot(Normal,light.direction));
-               float D = T_D_GGX(Roughness,NoH); 
-               float G = Smith_Method(NoV,viewDir,light.direction,k); 
-               float F = fresnelSchlick(F0,light.direction,Normal);
-               //直射光BRDF 
-               float Specular  = D*F*G/(4*saturate(dot(Normal,light.direction))*NoV); 
 
-               float3 Diffuse = diffuseColor/PI;
-               float3 radiance = light.color * light.shadowAttenuation *light.distanceAttenuation;
 
-               return (Diffuse + D*G*F/(4*dot(Normal,light.direction)* NoV + 0.0001) )*radiance * Normal;//加个0.00001 防止偶尔可能出现的除数为0的bug
+           void packageBRDFData(inout myBRDFContext brdfData,myLightContext staData,float Roughness,float k,float3 F0,float3 diffuseColor){
+            brdfData.D = T_D_GGX(Roughness,staData.NoH);
+            brdfData.G = Smith_Method(staData.NoV,staData.VoL,k);
+            brdfData.F = fresnelSchlick(F0,staData.NoL);
+            brdfData.SpecularColor = brdfData.D*brdfData.F*brdfData.G/(4*saturate(staData.NoL)* staData.NoV + 0.0001) ; 
+            brdfData.DiffuseColor = diffuseColor/PI;
+            }
+             
+
+               float3 DirectBRDF(myLightContext staData,myBRDFContext brdfData){//用这个函数之前需要先packeg两个结构体
+               return brdfData.SpecularColor*staData.radiance* staData.NoL;//加个0.00001 防止偶尔可能出现的除数为0的bug
 
                }  
- 
-
+  
+  
 
             //下面是间接光的公式
             
@@ -166,16 +207,16 @@ Shader "Unlit/URP_Shader"
 	return AB;
             }
 
-float3 EnvBRDFApprox( float3 SpecularColor, float Roughness,float NoV )
-{
-	float2 AB = EnvBRDFApproxLazarov(Roughness, NoV);
+            float3 EnvBRDFApprox( float3 SpecularColor, float Roughness,float NoV )
+         {
+	        float2 AB = EnvBRDFApproxLazarov(Roughness, NoV);
 
-	// Anything less than 2% is physically impossible and is instead considered to be shadowing
-	// Note: this is needed for the 'specular' show flag to work, since it uses a SpecularColor of 0
-	float F90 = saturate( 50.0 * SpecularColor.g );
+        	// Anything less than 2% is physically impossible and is instead considered to be shadowing
+	        // Note: this is needed for the 'specular' show flag to work, since it uses a SpecularColor of 0
+	        float F90 = saturate( 50.0 * SpecularColor.g );
 
-	return SpecularColor * AB.x + F90 * AB.y;
-}
+	        return SpecularColor * AB.x + F90 * AB.y;
+            }
 
 
 
@@ -189,37 +230,38 @@ float3 EnvBRDFApprox( float3 SpecularColor, float Roughness,float NoV )
                float3x3 TBN = float3x3(input.tangentWS,input.bitangentWS,input.normalWS );//TBN
                float3 normal = normalize(TransformTangentToWorld(normalTS,TBN));//这个法线才能拿来用
  
-  
                float3 CameraPosWS = GetCameraPositionWS();//摄像机位置。
-               float3 viewDir = CameraPosWS - input.positionWS;//视觉方向。
+               float3 viewDir = normalize(CameraPosWS - input.positionWS);//视觉方向。
           
                //下面要整合一大堆接下来需要用到的数值
                float3 F0 =lerp(0.04,BaseColor,MRO.r); //基础反射率 这个是拿去给菲涅尔效应用的
                float k = pow(MRO.g+1,2)/8;//这里用的是直接光照的重映射
                float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS); 
                Light mainLight = GetMainLight(shadowCoord);//获得光照mainLight
-               float3 h_main = (mainLight.direction + viewDir)/abs(mainLight.direction + viewDir);  //h半程向量
- 
-               float NoV = saturate(dot(normal,viewDir));
-               float NoH_main = saturate(dot(normal,h_main));
-
                float3 diffuseColor = BaseColor *( 1- MRO.r);//这是拿来用的漫反射
 
 
- 
-               //平行光BRDF
-               float3 MainLight_BRDF = DirectBRDF(normal ,mainLight,MRO.g,NoH_main,viewDir,k,NoV,F0,diffuseColor);
+        //下面来打包几个数据结构体
+        //为了测试的时候方便传入传出数值 直接用结构体打包需要的数据，配合方法直接算
+                myLightContext mainLightContext;//主光源的数据
+                myBRDFContext brdfContext;
+
+                packageLightContext(mainLightContext,normal,viewDir,mainLight);
+                packageBRDFData(brdfContext,mainLightContext,MRO.g,k,F0,diffuseColor );
+
+                float3 mainLightBRDF = DirectBRDF(mainLightContext,brdfContext);//这都是平行光的brdf结果
                float3 additionalLight_BRDF = 0; 
+
                //下面来搞其他的直射光BRDF  
                int count = GetAdditionalLightsCount();
                for(int i = 0; i<count;i++){
                Light light = GetAdditionalLight(i,input.positionWS,half4(1,1,1,1));
-               float3 h_addition = (light.direction+viewDir)/abs(light.direction+viewDir);  //非平行光的半程向量
-               float NoH_addition = saturate(dot(normal,h_addition));
-               additionalLight_BRDF += DirectBRDF(normal,light,MRO.g,NoH_addition,viewDir,k,NoV,F0,diffuseColor );
+               myLightContext additionalLightContext;
+               packageLightContext(additionalLightContext,normal,viewDir,light);
+               additionalLight_BRDF += DirectBRDF(additionalLightContext,brdfContext);
                }
  
-             float3  DirectColor = additionalLight_BRDF + MainLight_BRDF;
+              float3  DirectColor = additionalLight_BRDF + mainLightBRDF;
               //现在的Lambert就是集合完毕所有直射光照的东西了
 
                //接下来处理间接光 
@@ -227,29 +269,30 @@ float3 EnvBRDFApprox( float3 SpecularColor, float Roughness,float NoV )
                float3 R =reflect(-viewDir,normal); 
                float3 envColor = GlossyEnvironmentReflection(R,input.positionWS,MRO.g,MRO.b);
 
-               float3 indirectSpecular = envColor * EnvBRDFApprox(DirectColor ,MRO.g,NoV);
+                float3 indirectSpecular = envColor * EnvBRDFApprox(DirectColor ,MRO.g,mainLightContext.NoV);
                float3 inDirectColor = (indirectDiffuse + indirectSpecular) ;
-
+ 
               //下面是debug return
               #if defined(_DEBUGVIEW_NORMAL)
               return float4(normal * 0.5 + 0.5, 1);  // 方向向量从 -1~1 挪到 0~1，才看得出颜色
+
             #elif defined(_DEBUGVIEW_NOL)
              return float4(NoL.xxx, 1);  // 一个数复制到 RGB 三个通道，显示成灰度
-       
-          #elif defined(_DEBUFVIEW_VIEWDIR)
-          return float4 (viewDir,1);
+         
+            #elif defined(_DEBUGVIEW_VIEWDIR)
+            return float4 (viewDir*0.5 +0.5 ,1);
 
-         #elif defined(_DEBUGVIEW_METALLIC)
-          return float4(MRO.xxx, 1);
+            #elif defined(_DEBUGVIEW_METALLIC)
+             return float4(MRO.xxx, 1);
 
-         #elif defined(_DEBUGVIEW_ROUGHNESS)
-          return float4(MRO.yyy, 1);
+            #elif defined(_DEBUGVIEW_ROUGHNESS)
+            return float4(MRO.yyy, 1);
         
-         #elif defined(_DEBUGVIEW_AO)
-          return float4(MRO.zzz, 1);
+           #elif defined(_DEBUGVIEW_AO)
+            return float4(MRO.zzz, 1);
             #elif defined(_DEBUGVIEW_DIFFUSECOLOR)
-          return float4(diffuseColor.xyz, 1);
-        #elif defined(_DEBUGVIEW_DIRECTCOLOR)
+            return float4(diffuseColor.xyz, 1);
+         #elif defined(_DEBUGVIEW_DIRECTCOLOR)
           return float4(DirectColor.xyz, 1);
            #elif defined(_DEBUGVIEW_INDIRECTCOLOR)
           return float4(inDirectColor.xyz, 1);
@@ -266,4 +309,4 @@ float3 EnvBRDFApprox( float3 SpecularColor, float Roughness,float NoV )
 
 
     }
-}
+} 
