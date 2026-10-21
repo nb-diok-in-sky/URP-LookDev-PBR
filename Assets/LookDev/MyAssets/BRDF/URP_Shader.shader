@@ -126,7 +126,7 @@ Shader "Unlit/URP_Shader"
             {
                 float D;
                 float G;
-                float F;
+                float3 F;
                 float3 specularColor;
                 float3 diffuseColor;
             };
@@ -152,8 +152,8 @@ Shader "Unlit/URP_Shader"
             }
 
             float3 MyDirectBRDF(MyLightContext lightContext,inout MyBRDFContext brdfContext)//用这个函数之前需要先packeg两个结构体
-            {   brdfContext.diffuseColor = brdfContext.diffuseColor *lightContext.radiance *saturate(lightContext.NoL) ;
-                return brdfContext.specularColor * lightContext.radiance *saturate(lightContext.NoL);
+            {  
+                return (brdfContext.specularColor +brdfContext.diffuseColor) * lightContext.radiance *saturate(lightContext.NoL);
             }
 
             //下面是间接光的公式
