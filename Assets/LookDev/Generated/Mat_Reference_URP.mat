@@ -38,7 +38,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _AOStrength: 1
-    - _Metallic: 1
+    - _Metallic: 0
     - _NormalStrength: 1
     - _Roughness: 1
     m_Colors:
