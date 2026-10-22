@@ -5,7 +5,6 @@ Shader "Unlit/URP_Shader"
         _MRO("MRO贴图", 2D) = "white" {}
         _Normal("法线贴图", 2D) = "bump" {}
         _BaseColor("基础色贴图", 2D) = "white" {}
-        _Height("高度贴图", 2D) = "white" {}
 //下面是各类数值的一个基础强度 用来自由调参数看的 
         _MetallicStrength ("金属度倍数", Range(0, 1)) = 1
         _RoughnessStrength ("粗糙度倍数", Range(0, 1)) = 1
@@ -73,8 +72,6 @@ Shader "Unlit/URP_Shader"
             SAMPLER(sampler_Normal);
             TEXTURE2D(_BaseColor);
             SAMPLER(sampler_BaseColor);
-            TEXTURE2D(_Height);
-            SAMPLER(sampler_Height);
 
             Varyings Vert(Attributes input)
             {
@@ -290,5 +287,9 @@ Shader "Unlit/URP_Shader"
 
             ENDHLSL
         }
+
+        UsePass "Universal Render Pipeline/Lit/SHADOWCASTER"
+        UsePass "Universal Render Pipeline/Lit/DEPTHONLY"
+        UsePass "Universal Render Pipeline/Lit/DEPTHNORMALS"
     }
 }
