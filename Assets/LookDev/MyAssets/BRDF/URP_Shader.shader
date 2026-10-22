@@ -159,6 +159,7 @@ Shader "Unlit/URP_Shader"
                 brdfContext.F = MyFresnelSchlick(F0, lightContext.VoH);
                 brdfContext.specularColor = brdfContext.D * brdfContext.F * brdfContext.G / max(4*saturate(lightContext.NoL)*lightContext.NoV,0.0001);
                 brdfContext.diffuseColor = diffuseColor / PI;
+                brdfContext.diffuseColor = brdfContext.diffuseColor * (1-brdfContext.F);
             }
 
             float3 MyDirectBRDF(MyLightContext lightContext,inout MyBRDFContext brdfContext)//用这个函数之前需要先packeg两个结构体
@@ -215,7 +216,7 @@ Shader "Unlit/URP_Shader"
                 float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
                 Light mainLight = GetMainLight(shadowCoord);//获得光照mainLight
                 float3 diffuseColor = baseColor * (1 - mro.r);//这是拿来用的漫反射
-
+               
                 //下面来打包几个数据结构体
                 //为了测试的时候方便传入传出数值 直接用结构体打包需要的数据，配合方法直接算
                 MyLightContext mainLightContext;//主光源的数据
@@ -240,8 +241,8 @@ Shader "Unlit/URP_Shader"
                 }
 
                 float3 directColor = additionalLightBRDF + mainLightBRDF;
-                directColor = directColor*PI;
-                
+                directColor = directColor*PI;//因为unity的普遍公式里面没有用pi我们需要给直接光乘上一个pi才行
+
                 //现在的Lambert就是集合完毕所有直射光照的东西了
 
                 //接下来处理间接光
