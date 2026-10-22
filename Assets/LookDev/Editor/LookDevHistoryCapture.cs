@@ -90,14 +90,24 @@ public static class LookDevHistoryCapture
             .OrderBy(t => t.name).FirstOrDefault();
         var binRenderers = bin != null ? bin.GetComponentsInChildren<Renderer>() : new Renderer[0];
 
-        // 两个机位：对比特写（参考球 + 我的球），垃圾桶
+        // 对比机位：不依赖场景当前的摆放，把两个球临时搬到一块空地上并排放（场景不保存，不影响原来的摆放）
+        // 太阳从 -Z 往 +Z 照，所以相机放在 -Z 一侧，拍到的是迎光面
+        var stage = new Vector3(0f, 0f, -20f);
+        refSphere.transform.SetParent(null, true);
+        mySphere.transform.SetParent(null, true);
+        refSphere.transform.SetPositionAndRotation(stage + new Vector3(-0.6f, 0.5f, 0f), Quaternion.identity);
+        mySphere.transform.SetPositionAndRotation(stage + new Vector3(0.6f, 0.5f, 0f), Quaternion.identity);
+        refSphere.transform.localScale = mySphere.transform.localScale = Vector3.one;
         var compareCam = CloneCamera(mainCam, "_对比机位");
-        Frame(compareCam, Encapsulate(new[] { refSphere, mySphere }), mainCam.transform.forward, 1.15f);
+        compareCam.fieldOfView = 30f;
+        compareCam.transform.position = stage + new Vector3(0f, 1.0f, -4.2f);
+        compareCam.transform.LookAt(stage + new Vector3(0f, 0.5f, 0f));
+        compareCam.nearClipPlane = 0.05f;
         Camera binCam = null;
         if (binRenderers.Length > 0)
         {
             binCam = CloneCamera(mainCam, "_垃圾桶机位");
-            var dir = (mainCam.transform.forward + new Vector3(0.35f, -0.15f, 0)).normalized;
+            var dir = new Vector3(0.25f, -0.2f, 1f).normalized;   // 固定方向：从 -Z 一侧（迎光面）略微俯视
             Frame(binCam, Encapsulate(binRenderers), dir, 1.05f);
         }
 
@@ -109,6 +119,15 @@ public static class LookDevHistoryCapture
         var originalSphereMat = mySphere.sharedMaterial;
 
         var tex = FindAssetTextures();
+        var floor = GameObject.Find("Floor").GetComponent<Renderer>();
+        var allRenderers = Object.FindObjectsOfType<Renderer>();
+        var wasEnabled = allRenderers.ToDictionary(r => r, r => r.enabled);
+        System.Action<IEnumerable<Renderer>> showOnly = keep =>
+        {
+            var set = new HashSet<Renderer>(keep) { floor };
+            foreach (var r in allRenderers) r.enabled = set.Contains(r);
+        };
+        var refTint0 = refMat.GetColor("_BaseTint");
         var log = new StringBuilder("序号\t提交号\t机位\t材质参数\t文件\t编译\n");
 
         for (int i = 0; i < entries.Count; i++)
@@ -122,21 +141,20 @@ public static class LookDevHistoryCapture
 
             // 球：几种材质参数
             mySphere.sharedMaterial = mat;
+            showOnly(new[] { refSphere, mySphere });
             foreach (var p in SpherePresets)
             {
                 if (p.needSliders && !hasSliders) continue;
+                // 带滑条的版本：基础色用 50% 灰（sRGB 0.5），避免白球过曝看不出明暗；早期版本没有颜色参数，只能保持默认白
+                var tint = p.needSliders ? new Color(0.5f, 0.5f, 0.5f, 1f) : Color.white;
                 if (hasSliders) { mat.SetFloat("_MetallicStrength", p.metallic); mat.SetFloat("_RoughnessStrength", p.roughness); }
+                if (mat.HasProperty("_BaseColorTint")) mat.SetColor("_BaseColorTint", tint);
+                refMat.SetColor("_BaseTint", tint);
                 refMat.SetFloat("_Metallic", p.metallic);
                 refMat.SetFloat("_Roughness", p.roughness);
                 string name = $"{i + 1:00}_{hash}_对比_{p.name}.png";
                 Capture(compareCam, Path.Combine(OutDir, name));
                 log.Append($"{i + 1}\t{hash}\t对比\t{p.name}\t{name}\t{(ok ? "通过" : "失败")}\n");
-                if (p.name == "默认白贴图")
-                {
-                    string full = $"{i + 1:00}_{hash}_全景_{p.name}.png";
-                    Capture(mainCam, Path.Combine(OutDir, full));
-                    log.Append($"{i + 1}\t{hash}\t全景\t{p.name}\t{full}\t{(ok ? "通过" : "失败")}\n");
-                }
             }
 
             // 垃圾桶：挂上资产贴图
@@ -148,6 +166,7 @@ public static class LookDevHistoryCapture
                 SetIfHas(binMat, "_MRO", tex.mro);
                 SetIfHas(binMat, "_ORM", tex.mro);
                 foreach (var r in binRenderers) r.sharedMaterials = Enumerable.Repeat(binMat, r.sharedMaterials.Length).ToArray();
+                showOnly(binRenderers);
                 string name = $"{i + 1:00}_{hash}_垃圾桶.png";
                 Capture(binCam, Path.Combine(OutDir, name));
                 log.Append($"{i + 1}\t{hash}\t垃圾桶\t资产贴图\t{name}\t{(ok ? "通过" : "失败")}\n");
@@ -157,7 +176,9 @@ public static class LookDevHistoryCapture
         // 还原
         refMat.SetFloat("_Metallic", refMetal0);
         refMat.SetFloat("_Roughness", refRough0);
+        refMat.SetColor("_BaseTint", refTint0);
         AssetDatabase.SaveAssets();
+        foreach (var kv in wasEnabled) kv.Key.enabled = kv.Value;
         mySphere.sharedMaterial = originalSphereMat;
         for (int k = 0; k < binRenderers.Length; k++) binRenderers[k].sharedMaterials = originalBinMats[k];
         Object.DestroyImmediate(compareCam.gameObject);
