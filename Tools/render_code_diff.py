@@ -10,7 +10,7 @@ PATH = "Assets/LookDev/MyAssets/BRDF/URP_Shader.shader"
 OUT = os.path.join(REPO, "Screenshots", "代码改动")
 FONT = ImageFont.truetype(r"C:\Windows\Fonts\simsun.ttc", 20, index=1)   # 新宋体，和 VS Code 里一样
 TITLE_FONT = ImageFont.truetype(r"C:\Windows\Fonts\msyh.ttc", 22)
-SKIP = {"de9625e"}          # 只整理格式的提交不画
+SKIP_PREFIX = "整理格式"    # 提交说明以这个开头的（只改格式、不改逻辑）不画
 MAX_LINES = 70              # 一张图最多多少行，超过就分图
 
 # Visual Studio 深色主题的颜色
@@ -102,7 +102,7 @@ def main():
     made = []
     for idx, line in enumerate(log, 1):
         h, msg = line.split("\t", 1)
-        if idx == 1 or h in SKIP:
+        if idx == 1 or msg.startswith(SKIP_PREFIX):
             continue
         rows = []
         for hk in parse_diff(h):
@@ -131,7 +131,7 @@ def main():
         for p, page in enumerate(pages, 1):
             suffix = f"_{p}" if len(pages) > 1 else ""
             name = f"{idx:02d}_{h}_代码{suffix}.png"
-            title = f"{idx:02d}  {h}  {short}" + (f"  （{p}/{len(pages)}）" if len(pages) > 1 else "")
+            title = f"第 {idx:02d} 版   提交 {h}" + (f"   （{p}/{len(pages)}）" if len(pages) > 1 else "")
             render(page, title, os.path.join(OUT, name))
             made.append(name)
     print(len(made), "张")
