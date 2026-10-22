@@ -42,3 +42,7 @@ Thumbs.db
 
 # VS Code 跳转用的 include 链接（指向 Library/PackageCache 里的 Unity 包源码），每台电脑自己建
 /.shaderinclude/
+
+# 历史版本截图用的临时 shader（截图脚本运行前生成，跑完可删）
+/Assets/LookDev/_History/
+/Assets/LookDev/_History.meta
