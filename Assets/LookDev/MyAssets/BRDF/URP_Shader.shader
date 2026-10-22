@@ -240,6 +240,8 @@ Shader "Unlit/URP_Shader"
                 }
 
                 float3 directColor = additionalLightBRDF + mainLightBRDF;
+                directColor = directColor*PI;
+                
                 //现在的Lambert就是集合完毕所有直射光照的东西了
 
                 //接下来处理间接光
