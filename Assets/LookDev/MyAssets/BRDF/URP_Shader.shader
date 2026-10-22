@@ -169,6 +169,12 @@ Shader "Unlit/URP_Shader"
 
             //下面是间接光的公式
 
+            float3 myFresnelSchlickRoughness(float NoV, float3 F0, float Roughness)
+            {
+            return F0 + (max(1.0 - Roughness, F0) - F0) * pow(1.0 - NoV, 5.0);
+            }   
+
+
             float2 EnvBRDFApproxLazarov(float Roughness, float NoV)
             {
                 // [ Lazarov 2013, "Getting More Physical in Call of Duty: Black Ops II" ]
@@ -215,7 +221,7 @@ Shader "Unlit/URP_Shader"
                 float k = pow(mro.g + 1, 2) / 8;//这里用的是直接光照的重映射
                 float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
                 Light mainLight = GetMainLight(shadowCoord);//获得光照mainLight
-                float3 diffuseColor = baseColor * (1 - mro.r);//这是拿来用的漫反射
+                float3 diffuseColor = baseColor * (1 - mro.r);//这是拿来用的漫反射  
                
                 //下面来打包几个数据结构体
                 //为了测试的时候方便传入传出数值 直接用结构体打包需要的数据，配合方法直接算
@@ -246,7 +252,8 @@ Shader "Unlit/URP_Shader"
                 //现在的Lambert就是集合完毕所有直射光照的东西了
 
                 //接下来处理间接光
-                float3 indirectDiffuse = SampleSH(normal) * diffuseColor *mro.b ;
+                float3 indirectF = myFresnelSchlickRoughness(mainLightContext.NoV,F0,mro.g);
+                float3 indirectDiffuse = SampleSH(normal) * diffuseColor *mro.b *  (1- indirectF) ;
                 float3 R = reflect(-viewDir, normal);
                 float3 envColor = GlossyEnvironmentReflection(R, input.positionWS, mro.g, mro.b);
 
