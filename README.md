@@ -2,7 +2,7 @@
 
 在 Unity URP 里手写 Cook-Torrance BRDF，并且放进一个仿虚幻默认效果的 LookDev 场景，和 URP 自带光照逐像素对比，最后接入一套自己做的 PBR 资产检验全流程。
 
-- 配套文章（知乎）：*发布后补上链接*
+- 配套文章（知乎）：https://zhuanlan.zhihu.com/p/2095633841343967585
 - 手写的 shader：[`Assets/LookDev/MyAssets/BRDF/URP_Shader.shader`](Assets/LookDev/MyAssets/BRDF/URP_Shader.shader)
 - 21 个版本的演化记录（每版一张图：改之前 / 改之后 / 代码改动）：[演化记录.md](演化记录.md)
 - 截图用的光照和后处理设置：[测试环境.md](Screenshots/测试环境.md)
