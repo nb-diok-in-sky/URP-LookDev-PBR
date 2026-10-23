@@ -174,8 +174,7 @@ Shader "Unlit/URP_Shader"
 
             float2 EnvBRDFApproxLazarov(float Roughness, float NoV)
             {
-                // [ Lazarov 2013, "Getting More Physical in Call of Duty: Black Ops II" ]
-                // Adaptation to fit our G term.
+                // 间接高光的 DFG 拟合：出自 Karis 2014《Physically Based Shading on Mobile》，基于 Lazarov 2013 的拟合
                 const float4 c0 = { -1, -0.0275, -0.572, 0.022 };
                 const float4 c1 = { 1, 0.0425, 1.04, -0.04 };
                 float4 r = Roughness * c0 + c1;
@@ -188,8 +187,7 @@ Shader "Unlit/URP_Shader"
             {
                 float2 AB = EnvBRDFApproxLazarov(Roughness, NoV);
 
-                // Anything less than 2% is physically impossible and is instead considered to be shadowing
-                // Note: this is needed for the 'specular' show flag to work, since it uses a SpecularColor of 0
+                // F0 低于 2% 在物理上不存在，当成被遮挡处理，F90 跟着降到 0
                 float F90 = saturate(50.0 * F0.g);
 
                 return F0 * AB.x + F90 * AB.y;
