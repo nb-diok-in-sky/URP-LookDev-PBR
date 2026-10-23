@@ -21,6 +21,16 @@
 - 和 URP 自带光照在同一像素上的比值：1.003（RenderDoc 读数，后处理之前）
 - 阴影、深度、深度法线借用 URP Lit 的 pass（UsePass），因此不兼容 SRP Batcher
 
+## 哪些是手写的
+
+| 部分 | 文件 |
+|---|---|
+| **手写 BRDF shader**（本项目的主体，逐行手写） | `Assets/LookDev/MyAssets/BRDF/URP_Shader.shader`，以及 `MyAssets/` 下用它的材质 |
+| 对比用的参考 shader（调用 URP 自带的 `UniversalFragmentPBR`，不是手写 BRDF） | `Assets/LookDev/Shaders/LookDev_ReferencePBR.shader` |
+| LookDev 场景和辅助工具（非手写部分，借助 AI 搭建） | `Assets/LookDev/Shaders/LookDevProbe.hlsl`、`Assets/LookDev/Editor/`、`Assets/LookDev/Scripts/`、`Tools/` |
+
+对比图里，左边的球用参考 shader，右边的球用手写 shader。
+
 参考资料：
 
 - Brian Karis, *Real Shading in Unreal Engine 4*, SIGGRAPH 2013 Course: Physically Based Shading in Theory and Practice（[课程页](https://blog.selfshadow.com/publications/s2013-shading-course/)）
